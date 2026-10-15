@@ -28,11 +28,22 @@ class Settings:
     admins: list[int]
     marker: str
     routes: list[Route]
-    poll_interval_minutes: int = 30
+    poll_interval_seconds: float = 0  # 0 = auto: the fastest cycle the rate limit allows
+    rate_limit_per_minute: int = 600
+    rate_safety_margin: float = 0.15
     currency: str = "rub"
     market: str = "ru"
     realert_drop_percent: float = 5.0
     db_path: str = "data/aviabot.db"
+
+    @property
+    def request_spacing(self) -> float:
+        """Minimum seconds between API requests, keeping the margin below the limit."""
+        return 60 / (self.rate_limit_per_minute * (1 - self.rate_safety_margin))
+
+    @property
+    def min_cycle_seconds(self) -> float:
+        return sum(len(r.dates) for r in self.routes) * self.request_spacing
 
 
 def _as_date(v) -> date:
@@ -68,7 +79,10 @@ def load_settings(config_path: str = "config.yaml") -> Settings:
         admins=[int(x) for x in os.environ.get("ADMINS", "").split(",") if x.strip()],
         marker=os.environ.get("TRAVELPAYOUTS_MARKER", ""),
         routes=routes,
-        poll_interval_minutes=int(raw.get("poll_interval_minutes", 30)),
+        poll_interval_seconds=0 if str(raw.get("poll_interval_seconds", "auto")) == "auto"
+        else float(raw["poll_interval_seconds"]),
+        rate_limit_per_minute=int(raw.get("rate_limit_per_minute", 600)),
+        rate_safety_margin=float(raw.get("rate_safety_margin", 0.15)),
         currency=raw.get("currency", "rub"),
         market=raw.get("market", "ru"),
         realert_drop_percent=float(raw.get("realert_drop_percent", 5)),

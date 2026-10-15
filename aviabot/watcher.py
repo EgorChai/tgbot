@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Awaitable, Callable
 
@@ -43,7 +44,6 @@ class Watcher:
                 found += await self.client.search(route, day)
             except Exception:
                 log.exception("search failed: %s %s", route.name, day)
-            await asyncio.sleep(1)  # be polite to the API
 
         sent = 0
         for t in sorted(found, key=lambda t: (t.transfers, t.price)):  # fewer transfers first
@@ -61,10 +61,13 @@ class Watcher:
         return total
 
     async def run_forever(self) -> None:
+        interval = max(self.s.poll_interval_seconds, self.s.min_cycle_seconds)
+        log.info("cycle interval: %.1fs (min allowed by rate limit: %.1fs)", interval, self.s.min_cycle_seconds)
         while True:
+            started = time.monotonic()
             try:
                 n = await self.check_all()
                 log.info("cycle done, alerts sent: %d", n)
             except Exception:
                 log.exception("cycle failed")
-            await asyncio.sleep(self.s.poll_interval_minutes * 60)
+            await asyncio.sleep(max(0.0, interval - (time.monotonic() - started)))

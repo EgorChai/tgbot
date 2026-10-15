@@ -48,3 +48,20 @@ async def test_dedup_and_price_drop():
     assert not await st.should_notify("k", 980, 5)
     assert await st.should_notify("k", 940, 5)
     await st.close()
+
+
+def test_rate_limit_margin(monkeypatch):
+    from aviabot.config import load_settings
+    monkeypatch.setenv("BOT_TOKEN", "x"); monkeypatch.setenv("TRAVELPAYOUTS_TOKEN", "y")
+    s = load_settings("config.example.yaml")
+    assert 60 / s.request_spacing == pytest.approx(510)
+    assert s.min_cycle_seconds == pytest.approx(36 * 60 / 510)
+
+
+async def test_throttle_spacing():
+    import time
+    c = AviasalesClient("t", client=httpx.AsyncClient(base_url="https://x"), min_spacing=0.05)
+    t0 = time.monotonic()
+    for _ in range(5):
+        await c._throttle()
+    assert time.monotonic() - t0 >= 0.19

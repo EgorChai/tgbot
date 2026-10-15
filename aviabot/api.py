@@ -1,7 +1,9 @@
 """Client for the Travelpayouts / Aviasales Data API (cached prices, no captcha)."""
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -39,7 +41,10 @@ class Ticket:
 
 class AviasalesClient:
     def __init__(self, token: str, currency: str = "rub", market: str = "ru",
-                 client: httpx.AsyncClient | None = None):
+                 client: httpx.AsyncClient | None = None, min_spacing: float = 0.0):
+        self._spacing = min_spacing
+        self._next_slot = 0.0
+        self._lock = asyncio.Lock()
         self._currency = currency
         self._market = market
         self._client = client or httpx.AsyncClient(
@@ -47,6 +52,14 @@ class AviasalesClient:
             headers={"X-Access-Token": token},
             timeout=20,
         )
+
+    async def _throttle(self) -> None:
+        """Space requests out so the per-minute limit (minus margin) is never exceeded."""
+        async with self._lock:
+            now = time.monotonic()
+            if now < self._next_slot:
+                await asyncio.sleep(self._next_slot - now)
+            self._next_slot = max(now, self._next_slot) + self._spacing
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -64,7 +77,10 @@ class AviasalesClient:
             "unique": "false",
             "limit": 50,
         }
+        await self._throttle()
         resp = await self._client.get("/aviasales/v3/prices_for_dates", params=params)
+        if resp.status_code == 429:
+            await asyncio.sleep(float(resp.headers.get("Retry-After", 30)))
         resp.raise_for_status()
         payload = resp.json()
         if not payload.get("success", True):

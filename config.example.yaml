@@ -1,4 +1,9 @@
-poll_interval_minutes: 30   # как часто проверять все связки
+# Лимит Travelpayouts для prices_for_dates: 600 запросов/мин.
+# Держим запас 15% -> не больше 510 запросов/мин.
+rate_limit_per_minute: 600
+rate_safety_margin: 0.15
+# Пауза между циклами: auto = как можно чаще в рамках лимита, либо число секунд
+poll_interval_seconds: auto
 currency: rub
 market: ru
 # Повторно уведомлять о том же билете, только если цена упала минимум на столько %

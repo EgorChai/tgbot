@@ -24,7 +24,7 @@ async def main() -> None:
 
     storage = Storage(s.db_path)
     await storage.open()
-    client = AviasalesClient(s.api_token, s.currency, s.market)
+    client = AviasalesClient(s.api_token, s.currency, s.market, min_spacing=s.request_spacing)
 
     async def notify(route, ticket):
         text = format_ticket(route, ticket, s.marker)
@@ -53,7 +53,7 @@ async def main() -> None:
     @dp.message(Command("status"))
     async def status(m: Message):
         last = await storage.get_state("last_run") or "ещё не запускалось"
-        await m.answer(f"Последняя проверка: {last}\nИнтервал: {s.poll_interval_minutes} мин")
+        await m.answer(f"Последняя проверка: {last}\nМинимальный цикл по лимиту API: {s.min_cycle_seconds:.0f} с")
 
     task = asyncio.create_task(watcher.run_forever())
     try:
