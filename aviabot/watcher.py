@@ -17,7 +17,7 @@ Notify = Callable[[Route, Ticket], Awaitable[None]]
 def format_ticket(route: Route, t: Ticket, marker: str = "") -> str:
     dep = datetime.fromisoformat(t.departure_at).strftime("%d.%m.%Y %H:%M")
     lines = [
-        f"✈️ <b>{route.name}</b> — <b>{t.price:,} ₽</b>".replace(",", " "),
+        f"{'⭐' if route.priority else '✈️'} <b>{route.name}</b> — <b>{t.price:,} ₽</b>".replace(",", " "),
         f"Вылет: {dep}",
     ]
     if t.return_at:
@@ -37,19 +37,20 @@ class Watcher:
         self.notify = notify
 
     async def check_route(self, route: Route) -> int:
-        sent = 0
-        for month in route.months:
+        found: list[Ticket] = []
+        for day in route.dates:
             try:
-                tickets = await self.client.search(route, month)
+                found += await self.client.search(route, day)
             except Exception:
-                log.exception("search failed: %s %s", route.name, month)
-                continue
-            for t in tickets:
-                if await self.storage.should_notify(t.key, t.price, self.s.realert_drop_percent):
-                    await self.notify(route, t)
-                    await self.storage.mark_notified(t.key, t.price)
-                    sent += 1
+                log.exception("search failed: %s %s", route.name, day)
             await asyncio.sleep(1)  # be polite to the API
+
+        sent = 0
+        for t in sorted(found, key=lambda t: (t.transfers, t.price)):  # fewer transfers first
+            if await self.storage.should_notify(t.key, t.price, self.s.realert_drop_percent):
+                await self.notify(route, t)
+                await self.storage.mark_notified(t.key, t.price)
+                sent += 1
         return sent
 
     async def check_all(self) -> int:

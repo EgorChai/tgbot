@@ -51,18 +51,18 @@ class AviasalesClient:
     async def close(self) -> None:
         await self._client.aclose()
 
-    async def search(self, route: Route, month: str) -> list[Ticket]:
+    async def search(self, route: Route, day: str) -> list[Ticket]:
         params: dict = {
             "origin": route.origin,
             "destination": route.destination,
-            "departure_at": month,
+            "departure_at": day,
             "one_way": str(route.one_way).lower(),
-            "direct": str(route.direct_only).lower(),
+            "direct": str(route.max_transfers == 0).lower(),
             "currency": self._currency,
             "market": self._market,
             "sorting": "price",
             "unique": "false",
-            "limit": 100,
+            "limit": 50,
         }
         resp = await self._client.get("/aviasales/v3/prices_for_dates", params=params)
         resp.raise_for_status()
@@ -83,21 +83,14 @@ class AviasalesClient:
                 duration=item.get("duration"),
                 link=item.get("link", ""),
             )
-            if _matches(route, t):
+            if _matches(route, t, day):
                 tickets.append(t)
         return tickets
 
 
-def _matches(route: Route, t: Ticket) -> bool:
-    if t.price > route.max_price:
-        return False
-    if route.direct_only and t.transfers > 0:
-        return False
-    if route.stay_days and t.return_at and not route.one_way:
-        from datetime import datetime
-
-        d = datetime.fromisoformat(t.return_at).date() - datetime.fromisoformat(t.departure_at).date()
-        lo, hi = route.stay_days
-        if not lo <= d.days <= hi:
-            return False
-    return True
+def _matches(route: Route, t: Ticket, day: str) -> bool:
+    return (
+        t.price <= route.max_price
+        and t.transfers <= route.max_transfers
+        and t.departure_at.startswith(day)
+    )

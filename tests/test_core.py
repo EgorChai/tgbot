@@ -5,7 +5,7 @@ from aviabot.api import AviasalesClient
 from aviabot.config import Route
 from aviabot.storage import Storage
 
-ROUTE = Route("t", "MOW", "IST", ["2026-12"], max_price=10000, direct_only=True, stay_days=(5, 10))
+ROUTE = Route("t", "DAD", "MOW", ["2026-10-29"], max_price=35000, max_transfers=1)
 
 
 def _item(price, transfers, dep, ret):
@@ -15,16 +15,28 @@ def _item(price, transfers, dep, ret):
 
 async def test_search_filters():
     data = [
-        _item(9000, 0, "2026-12-01T10:00:00+03:00", "2026-12-07T10:00:00+03:00"),  # ok
-        _item(12000, 0, "2026-12-01T10:00:00+03:00", "2026-12-07T10:00:00+03:00"),  # too expensive
-        _item(8000, 1, "2026-12-01T10:00:00+03:00", "2026-12-07T10:00:00+03:00"),  # transfer
-        _item(8000, 0, "2026-12-01T10:00:00+03:00", "2026-12-20T10:00:00+03:00"),  # stay too long
+        _item(30000, 1, "2026-10-29T10:00:00+07:00", None),  # ok
+        _item(40000, 0, "2026-10-29T10:00:00+07:00", None),  # too expensive
+        _item(20000, 2, "2026-10-29T10:00:00+07:00", None),  # too many transfers
+        _item(20000, 0, "2026-10-30T10:00:00+07:00", None),  # other day
     ]
     transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"success": True, "data": data}))
     c = AviasalesClient("tok", client=httpx.AsyncClient(transport=transport, base_url="https://x"))
-    res = await c.search(ROUTE, "2026-12")
-    assert [t.price for t in res] == [9000]
+    res = await c.search(ROUTE, "2026-10-29")
+    assert [t.price for t in res] == [30000]
     assert res[0].url("m1").endswith("?marker=m1")
+
+
+def test_config_expands_routes(tmp_path, monkeypatch):
+    from aviabot.config import load_settings
+    monkeypatch.setenv("BOT_TOKEN", "x"); monkeypatch.setenv("TRAVELPAYOUTS_TOKEN", "y")
+    monkeypatch.setenv("ADMINS", "1")
+    s = load_settings("config.example.yaml")
+    assert len(s.routes) == 4 * 2 + 4
+    assert s.routes[0].origin == "DAD" and s.routes[0].priority
+    ovb = [r for r in s.routes if r.destination == "OVB"]
+    assert all(r.max_transfers == 0 and r.max_price == 20000 for r in ovb)
+    assert s.routes[0].dates == ["2026-10-29", "2026-10-30", "2026-10-31"]
 
 
 async def test_dedup_and_price_drop():

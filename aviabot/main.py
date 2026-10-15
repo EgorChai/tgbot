@@ -40,8 +40,8 @@ async def main() -> None:
     @dp.message(Command("routes"))
     async def routes(m: Message):
         await m.answer("\n".join(
-            f"• {r.name}: до {r.max_price} ₽, {', '.join(r.months)}"
-            f"{', только прямые' if r.direct_only else ''}" for r in s.routes
+            f"{'⭐' if r.priority else '•'} {r.name}: до {r.max_price} ₽, "
+            f"пересадок ≤{r.max_transfers}, {r.dates[0]}…{r.dates[-1]}" for r in s.routes
         ))
 
     @dp.message(Command("check"))

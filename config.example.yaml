@@ -1,17 +1,33 @@
-poll_interval_minutes: 30   # how often to check every route
+poll_interval_minutes: 30   # как часто проверять все связки
 currency: rub
 market: ru
-# Re-alert on an already seen ticket only if price dropped by at least this %
+# Повторно уведомлять о том же билете, только если цена упала минимум на столько %
 realert_drop_percent: 5
 
-routes:
-  - name: Москва → Стамбул
-    origin: MOW
-    destination: IST
-    # months to scan (YYYY-MM), or exact dates (YYYY-MM-DD) - both work
-    months: ["2026-12", "2027-01"]
-    one_way: false
-    # for round-trip: allowed stay length in days
-    stay_days: [5, 10]
-    direct_only: true
-    max_price: 15000
+searches:
+  # Вьетнам -> Москва / СПб
+  - origins:
+      - {code: DAD, name: Дананг, priority: true}
+      - {code: NHA, name: Нячанг}
+      - {code: SGN, name: Хошимин}
+      - {code: HAN, name: Ханой}
+    destinations:
+      - {code: MOW, name: Москва}
+      - {code: LED, name: Санкт-Петербург}
+    dates: {from: 2026-10-29, to: 2026-10-31}
+    max_price: 35000
+    max_transfers: 2   # 0/1/2, чем меньше - тем выше в выдаче
+    one_way: true
+
+  # Вьетнам -> Новосибирск: только прямые и до 20000
+  - origins:
+      - {code: DAD, name: Дананг, priority: true}
+      - {code: NHA, name: Нячанг}
+      - {code: SGN, name: Хошимин}
+      - {code: HAN, name: Ханой}
+    destinations:
+      - {code: OVB, name: Новосибирск}
+    dates: {from: 2026-10-29, to: 2026-10-31}
+    max_price: 20000
+    max_transfers: 0
+    one_way: true
