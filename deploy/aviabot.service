@@ -1,0 +1,13 @@
+[Unit]
+Description=Aviasales price watcher bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/aviabot
+ExecStart=/opt/aviabot/.venv/bin/python -m aviabot.main
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
