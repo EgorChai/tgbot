@@ -1,0 +1,17 @@
+poll_interval_minutes: 30   # how often to check every route
+currency: rub
+market: ru
+# Re-alert on an already seen ticket only if price dropped by at least this %
+realert_drop_percent: 5
+
+routes:
+  - name: Москва → Стамбул
+    origin: MOW
+    destination: IST
+    # months to scan (YYYY-MM), or exact dates (YYYY-MM-DD) - both work
+    months: ["2026-12", "2027-01"]
+    one_way: false
+    # for round-trip: allowed stay length in days
+    stay_days: [5, 10]
+    direct_only: true
+    max_price: 15000

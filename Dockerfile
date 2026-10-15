@@ -1,8 +1,6 @@
-FROM python:3.9-buster
-ENV BOT_NAME=$BOT_NAME
-
-WORKDIR /usr/src/app/"${BOT_NAME:-tg_bot}"
-
-COPY requirements.txt /usr/src/app/"${BOT_NAME:-tg_bot}"
-RUN pip install -r /usr/src/app/"${BOT_NAME:-tg_bot}"/requirements.txt
-COPY . /usr/src/app/"${BOT_NAME:-tg_bot}"
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY aviabot ./aviabot
+CMD ["python", "-m", "aviabot.main"]
